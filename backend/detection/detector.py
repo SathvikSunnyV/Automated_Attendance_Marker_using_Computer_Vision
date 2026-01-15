@@ -1,21 +1,36 @@
+from retinaface import RetinaFace
 import numpy as np
+from config import MIN_FACE_SIZE
 
 def detect_faces(image):
     """
-    Temporary placeholder detector.
-    Returns fake bounding boxes to test pipeline.
+    RetinaFace-based real face detector.
+    Returns list of bounding boxes + landmarks.
     """
 
-    h, w, _ = image.shape
+    detections = RetinaFace.detect_faces(image)
 
-    # Fake: assume one face in center
-    bbox = {
-        "x1": int(w * 0.3),
-        "y1": int(h * 0.3),
-        "x2": int(w * 0.7),
-        "y2": int(h * 0.7),
-        "confidence": 0.99,
-        "landmarks": None
-    }
+    results = []
 
-    return [bbox]
+    if detections is None:
+        return results
+
+    for _, face in detections.items():
+        x1, y1, x2, y2 = face["facial_area"]
+
+        # size filter
+        if (x2 - x1) < MIN_FACE_SIZE or (y2 - y1) < MIN_FACE_SIZE:
+            continue
+
+        landmarks = face.get("landmarks", None)
+
+        results.append({
+            "x1": int(x1),
+            "y1": int(y1),
+            "x2": int(x2),
+            "y2": int(y2),
+            "confidence": float(face["score"]),
+            "landmarks": landmarks
+        })
+
+    return results

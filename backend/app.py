@@ -42,10 +42,17 @@ def upload_image():
             mark_attendance(identity)
 
         results.append({
-            "bbox": det,
+            "bbox": {
+                "x1": int(det["x1"]),
+                "y1": int(det["y1"]),
+                "x2": int(det["x2"]),
+                "y2": int(det["y2"]),
+                "confidence": float(det["confidence"])
+            },
             "identity": identity,
-            "similarity": float(score)
+            "similarity": float(score) if score is not None else 0.0
         })
+
 
     return jsonify({
         "faces_detected": len(results),
