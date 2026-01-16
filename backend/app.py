@@ -36,6 +36,9 @@ def upload_image():
     for det in detections:
         face = align_face(image, det)
         embedding = generate_embedding(face)
+        if embedding is None:
+            continue
+
         identity, score = match_face(embedding)
 
         if identity:
@@ -87,7 +90,12 @@ def enroll_face():
 
     for det in detections:
         face = align_face(image, det)
+        if face is None:
+            continue
+
         embedding = generate_embedding(face)
+        if embedding is None:
+            continue
         embeddings.append(embedding)
 
     final_embedding = np.mean(embeddings, axis=0)

@@ -19,7 +19,7 @@ def detect_faces(image):
         x1, y1, x2, y2 = face["facial_area"]
 
         # size filter
-        if (x2 - x1) < MIN_FACE_SIZE or (y2 - y1) < MIN_FACE_SIZE:
+        if (x2 - x1) < 30 or (y2 - y1) < 30:
             continue
 
         landmarks = face.get("landmarks", None)
