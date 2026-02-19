@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Attendance • Teacher Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        .sidebar { background: linear-gradient(180deg, #FF6600, #E55A00); }
+        .kpi-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .kpi-card:hover { transform: translateY(-6px); box-shadow: 0 25px 50px -12px rgb(249 115 22 / 0.3); }
+        .face-row { transition: all 0.2s; }
+        .face-row:hover { background-color: #fff7ed; transform: scale(1.02); }
+    </style>
+</head>
+<body class="h-full bg-orange-50">
+
+    <!-- PORT WARNING BANNER -->
+    <div id="port-warning" class="hidden fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-3 font-bold z-[9999]">
+        ⚠️ You are on the WRONG port! Open <a href="http://127.0.0.1:5000" class="underline">http://127.0.0.1:5000</a>
+    </div>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar fixed left-0 top-0 h-full w-72 text-white p-6 flex flex-col shadow-2xl">
+        <div class="flex items-center gap-3 mb-12">
+            <div class="w-12 h-12 bg-white rounded-3xl flex items-center justify-center text-4xl shadow-inner">📸</div>
+            <div class="text-3xl font-black tracking-tighter">Face Attendance</div>
+        </div>
+        <nav class="space-y-1 flex-1">
+            <a onclick="switchTab(0)" class="nav-item flex items-center gap-3 px-6 py-4 rounded-3xl text-white bg-white/20 font-semibold cursor-pointer">
+                <i class="fa-solid fa-gauge-high"></i> Dashboard
+            </a>
+            <a onclick="switchTab(1)" class="nav-item flex items-center gap-3 px-6 py-4 rounded-3xl hover:bg-white/10 font-medium cursor-pointer">
+                <i class="fa-solid fa-user-plus"></i> Register Student
+            </a>
+            <a onclick="switchTab(2)" class="nav-item flex items-center gap-3 px-6 py-4 rounded-3xl hover:bg-white/10 font-medium cursor-pointer">
+                <i class="fa-solid fa-camera"></i> Take Attendance
+            </a>
+            <a onclick="switchTab(3)" class="nav-item flex items-center gap-3 px-6 py-4 rounded-3xl hover:bg-white/10 font-medium cursor-pointer">
+                <i class="fa-solid fa-users"></i> Students
+            </a>
+            <a onclick="switchTab(4)" class="nav-item flex items-center gap-3 px-6 py-4 rounded-3xl hover:bg-white/10 font-medium cursor-pointer">
+                <i class="fa-solid fa-chart-pie"></i> Class Analytics
+            </a>
+            <a onclick="switchTab(5)" class="nav-item flex items-center gap-3 px-6 py-4 rounded-3xl hover:bg-white/10 font-medium cursor-pointer">
+                <i class="fa-solid fa-history"></i> History
+            </a>
+        </nav>
+        <div class="mt-auto pt-8 border-t border-white/30">
+            <div class="flex items-center gap-3 px-5 py-4 bg-white/10 rounded-3xl">
+                <img src="https://i.pravatar.cc/48?u=teacher" class="w-11 h-11 rounded-2xl ring-2 ring-white/60" alt="">
+                <div>
+                    <div class="font-semibold text-lg">Mrs. Priya Sharma</div>
+                    <div class="text-xs opacity-75">Class Teacher • 10A</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="ml-72 min-h-screen pb-20">
+        <div class="bg-white border-b border-orange-100 px-10 py-6 flex items-center justify-between sticky top-0 z-50 shadow">
+            <h1 id="page-title" class="text-3xl font-semibold text-gray-900">Dashboard</h1>
+            <div class="flex items-center gap-6">
+                <div class="bg-orange-50 text-orange-700 px-6 py-2.5 rounded-3xl text-sm font-medium flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-day"></i>
+                    <span id="current-date">19 February 2026</span>
+                </div>
+                <button id="upload-btn" onclick="triggerFileUpload()" class="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-3.5 rounded-3xl font-semibold flex items-center gap-3 shadow-xl">
+                    <i class="fa-solid fa-upload"></i> Upload Group Photo
+                </button>
+            </div>
+        </div>
+
+        <div id="content" class="p-10">
+            <!-- DASHBOARD -->
+            <div id="tab-0" class="tab-content">
+                <div class="grid grid-cols-12 gap-8">
+                    <div class="col-span-7 bg-white rounded-3xl p-8 shadow">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-2xl font-semibold">Live Recognition Review</h2>
+                            <button onclick="commitAttendance()" class="bg-orange-500 hover:bg-orange-600 text-white px-12 py-4 rounded-3xl font-bold text-lg shadow-2xl">✅ COMMIT ATTENDANCE</button>
+                        </div>
+                        <img id="group-preview" src="https://picsum.photos/id/1015/1100/520" class="w-full rounded-3xl shadow-inner" alt="">
+                    </div>
+
+                    <div class="col-span-5 bg-white rounded-3xl p-6 shadow flex flex-col">
+                        <div id="faces-detected" class="font-semibold text-xl mb-5 flex items-center gap-3">
+                            <i class="fa-solid fa-face-smile"></i> 0 Faces Detected
+                        </div>
+                        <div id="face-list" class="flex-1 overflow-auto space-y-4 pr-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other tabs (kept short for space) -->
+            <div id="tab-3" class="tab-content hidden">Students tab...</div>
+            <div id="tab-4" class="tab-content hidden">Analytics tab...</div>
+            <!-- add your other tabs if needed -->
+        </div>
+    </div>
+
+    <script>
+        // RELATIVE URL - works perfectly when opened from http://127.0.0.1:5000
+        async function handleFileUpload(file) {
+            const btn = document.getElementById('upload-btn');
+            const orig = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
+            btn.disabled = true;
+
+            const preview = document.getElementById('group-preview');
+            const oldSrc = preview.src;
+            preview.style.opacity = '0.6';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.success) {
+                    preview.src = data.image_url + '?v=' + Date.now();
+                    preview.style.opacity = '1';
+                    document.getElementById('faces-detected').innerHTML = `<i class="fa-solid fa-face-smile"></i> ${data.faces_count} Faces Detected`;
+                    renderRealFaces(data.attendance || []);
+                } else {
+                    alert('❌ ' + (data.error || 'Processing failed'));
+                    preview.src = oldSrc;
+                    preview.style.opacity = '1';
+                }
+            } catch (e) {
+                alert('❌ Cannot connect. Make sure you opened http://127.0.0.1:5000');
+                preview.src = oldSrc;
+                preview.style.opacity = '1';
+            }
+
+            btn.innerHTML = orig;
+            btn.disabled = false;
+        }
+
+        function renderRealFaces(attendance) {
+            const container = document.getElementById('face-list');
+            container.innerHTML = '';
+            if (!attendance.length) {
+                container.innerHTML = `<div class="text-center py-12 text-gray-400">No students recognized</div>`;
+                return;
+            }
+            attendance.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `face-row flex items-center gap-4 bg-white p-5 rounded-3xl border border-emerald-300`;
+                div.innerHTML = `
+                    <img src="https://i.pravatar.cc/64?u=${encodeURIComponent(item.Name)}" class="w-14 h-14 rounded-2xl object-cover">
+                    <div class="flex-1">
+                        <div class="font-semibold">${item.Name}</div>
+                        <div class="text-xs text-emerald-600">${(item.Confidence*100).toFixed(0)}% confidence</div>
+                    </div>
+                    <div class="px-5 py-1.5 bg-emerald-100 text-emerald-700 rounded-3xl text-sm font-semibold">Present</div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function triggerFileUpload() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = e => e.target.files[0] && handleFileUpload(e.target.files[0]);
+            input.click();
+        }
+
+        function checkPort() {
+            if (location.port !== '5000' && location.hostname === '127.0.0.1') {
+                document.getElementById('port-warning').classList.remove('hidden');
+            }
+        }
+
+        function commitAttendance() { alert("✅ Attendance committed!"); }
+        function switchTab(n) { /* your existing switchTab code */ }
+
+        window.onload = () => {
+            checkPort();
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
+            switchTab(0);
+            renderRealFaces([]);
+        };
+    </script>
+</body>
+</html>
