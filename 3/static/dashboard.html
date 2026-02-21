@@ -144,27 +144,34 @@
         }
 
         function renderRealFaces(attendance) {
-            const container = document.getElementById('face-list');
-            container.innerHTML = '';
-            if (!attendance.length) {
-                container.innerHTML = `<div class="text-center py-12 text-gray-400">No students recognized</div>`;
-                return;
-            }
-            attendance.forEach(item => {
-                const div = document.createElement('div');
-                div.className = `face-row flex items-center gap-4 bg-white p-5 rounded-3xl border border-emerald-300`;
-                div.innerHTML = `
-                    <img src="https://i.pravatar.cc/64?u=${encodeURIComponent(item.Name)}" class="w-14 h-14 rounded-2xl object-cover">
-                    <div class="flex-1">
-                        <div class="font-semibold">${item.Name}</div>
-                        <div class="text-xs text-emerald-600">${(item.Confidence*100).toFixed(0)}% confidence</div>
-                    </div>
-                    <div class="px-5 py-1.5 bg-emerald-100 text-emerald-700 rounded-3xl text-sm font-semibold">Present</div>
-                `;
-                container.appendChild(div);
-            });
-        }
+    const container = document.getElementById('face-list');
+    container.innerHTML = '';
 
+    if (!attendance.length) {
+        container.innerHTML = `<div class="text-center py-12 text-gray-400">No students recognized</div>`;
+        return;
+    }
+
+    attendance.forEach(item => {
+        const div = document.createElement('div');
+        div.className = `face-row flex items-center gap-4 bg-white p-5 rounded-3xl border border-emerald-300 hover:border-emerald-400 transition-all`;
+        
+        const imgSrc = item.db_image_url || `https://i.pravatar.cc/64?u=${encodeURIComponent(item.Name)}`;
+        
+        div.innerHTML = `
+            <img src="${imgSrc}" 
+                 class="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-100" 
+                 alt="${item.Name}"
+                 onerror="this.src='https://i.pravatar.cc/64?u=${encodeURIComponent(item.Name)}'">
+            <div class="flex-1">
+                <div class="font-semibold">${item.Name}</div>
+                <div class="text-xs text-emerald-600">${(item.Confidence*100).toFixed(0)}% confidence</div>
+            </div>
+            <div class="px-5 py-1.5 bg-emerald-100 text-emerald-700 rounded-3xl text-sm font-semibold">Present</div>
+        `;
+        container.appendChild(div);
+    });
+}
         function triggerFileUpload() {
             const input = document.createElement('input');
             input.type = 'file';
