@@ -5,6 +5,7 @@ import logging
 import cv2
 import numpy as np
 import pandas as pd
+import urllib.parse   # NEW: for safe URLs
 
 try:
     import onnxruntime as ort
@@ -39,7 +40,7 @@ class StaticAttendanceSystem:
         self.app = FaceAnalysis(name=self.model_name, providers=providers_arg)
         self.app.prepare(ctx_id=ctx_id, det_size=self.det_size)
 
-        self.known_embeddings = {}
+        self.known_faces = {}  # name -> {"embedding": , "filename": }
         self.load_database(self.db_folder)
 
     def load_database(self, db_folder):
@@ -70,10 +71,14 @@ class StaticAttendanceSystem:
             if norm == 0:
                 continue
             emb = emb / norm
-            self.known_embeddings[name] = emb.astype(np.float32)
-            logging.info("Loaded: %s (embedding length %d)", name, len(emb))
 
-        logging.info("Total registered identities loaded: %d", len(self.known_embeddings))
+            self.known_faces[name] = {
+                "embedding": emb.astype(np.float32),
+                "filename": fname
+            }
+            logging.info("Loaded: %s (filename: %s)", name, fname)
+
+        logging.info("Total registered identities loaded: %d", len(self.known_faces))
 
     def process_group_photo(self, image_path, output_path="output_attendance.jpg", csv_path=None, show=False):
         image_path = os.path.abspath(os.path.expanduser(image_path))
@@ -97,16 +102,24 @@ class StaticAttendanceSystem:
 
             identified = "Unknown"
             best_score = -1.0
-            for name, db_emb in self.known_embeddings.items():
-                score = float(np.dot(emb, db_emb))
+            best_filename = None
+
+            for name, data in self.known_faces.items():
+                score = float(np.dot(emb, data["embedding"]))
                 if score > best_score:
                     best_score = score
                     identified = name
+                    best_filename = data["filename"]
 
             if best_score >= self.match_threshold:
                 label = f"{identified} ({best_score:.2f})"
                 color = (0, 255, 0)
-                attendance.append({"Name": identified, "Confidence": float(best_score)})
+                safe_url = f"/db/{urllib.parse.quote(best_filename)}"
+                attendance.append({
+                    "Name": identified,
+                    "Confidence": float(best_score),
+                    "db_image_url": safe_url          # ← THIS IS THE KEY FIX
+                })
             else:
                 label = f"Unknown ({best_score:.2f})"
                 color = (0, 0, 255)
@@ -120,9 +133,8 @@ class StaticAttendanceSystem:
         logging.info("Annotated image saved to: %s", output_path)
 
         if attendance:
-            df = pd.DataFrame(attendance)
+            df = pd.DataFrame([{"Name": a["Name"], "Confidence": a["Confidence"]} for a in attendance])
             df.to_csv(csv_path, index=False)
-            logging.info("Attendance saved to: %s", csv_path)
 
         if show:
             cv2.imshow("Attendance", img)

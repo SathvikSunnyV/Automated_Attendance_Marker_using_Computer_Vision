@@ -13,11 +13,23 @@ UPLOAD_DIR = os.path.join(app.static_folder, 'uploads')
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 system = None
+DB_FOLDER = None
 
 def make_system(db_folder, det_size=(640,640), threshold=0.50, model_name="buffalo_l"):
-    global system
+    global system, DB_FOLDER
+    DB_FOLDER = os.path.abspath(os.path.expanduser(db_folder))
     system = StaticAttendanceSystem(db_folder=db_folder, det_size=det_size, match_threshold=threshold, model_name=model_name)
     return system
+
+# NEW: Serve real student photos from ./db folder
+@app.route('/db/<path:filename>')
+def serve_db_image(filename):
+    if DB_FOLDER is None:
+        return "Database not initialized", 500
+    try:
+        return send_from_directory(DB_FOLDER, filename)
+    except FileNotFoundError:
+        return "Image not found", 404
 
 @app.route("/", methods=["GET"])
 def root():
