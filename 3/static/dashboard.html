@@ -73,6 +73,7 @@
                 <button id="upload-btn" onclick="triggerFileUpload()" class="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white px-8 py-3.5 rounded-3xl font-semibold flex items-center gap-3 shadow-xl">
                     <i class="fa-solid fa-upload"></i> Upload Group Photo
                 </button>
+                <input id="group-file" type="file" accept="image/*" style="display:none" />
             </div>
         </div>
 
@@ -96,6 +97,32 @@
                     </div>
                 </div>
             </div>
+                        <!-- REGISTER STUDENT TAB -->
+            <div id="tab-1" class="tab-content hidden">
+                <div class="max-w-lg mx-auto bg-white rounded-3xl p-10 shadow-xl">
+                    <h2 class="text-3xl font-semibold text-center mb-8 text-orange-600">Register New Student</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
+                            <input id="reg-name" type="text" 
+                                   class="w-full px-6 py-4 border border-orange-200 rounded-3xl focus:outline-none focus:border-orange-500 text-lg"
+                                   placeholder="e.g. Rahul Sharma">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Student Photo (clear face)</label>
+                            <input id="reg-photo" type="file" accept="image/*"
+                                   class="w-full text-sm text-gray-500 file:mr-4 file:py-3 file:px-6 file:rounded-3xl file:border-0 file:bg-orange-100 file:text-orange-700 hover:file:bg-orange-200">
+                        </div>
+
+                        <button onclick="registerStudent()" id="reg-btn"
+                                class="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-4 rounded-3xl font-semibold text-lg shadow-xl">
+                            📸 Register Student
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Other tabs (kept short for space) -->
             <div id="tab-3" class="tab-content hidden">Students tab...</div>
@@ -104,97 +131,250 @@
         </div>
     </div>
 
-    <script>
-        // RELATIVE URL - works perfectly when opened from http://127.0.0.1:5000
-        async function handleFileUpload(file) {
-            const btn = document.getElementById('upload-btn');
-            const orig = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing...`;
-            btn.disabled = true;
+  <script>
+/* Consolidated dashboard script — drop-in replacement
+   - Robust registerStudent
+   - Reliable attendance upload handling
+   - Single definition for each helper
+   - Defensive checks and clearer error messages
+*/
 
-            const preview = document.getElementById('group-preview');
-            const oldSrc = preview.src;
-            preview.style.opacity = '0.6';
+function switchTab(n) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+    const el = document.getElementById(`tab-${n}`);
+    if (el) el.classList.remove('hidden');
+    const titles = ["Dashboard", "Register Student", "Take Attendance", "Students", "Class Analytics", "History"];
+    const titleEl = document.getElementById('page-title');
+    if (titleEl && titles[n]) titleEl.textContent = titles[n];
+}
 
-            const formData = new FormData();
-            formData.append('file', file);
+async function registerStudent() {
+    // Defensive: ensure DOM elements exist
+    const nameEl = document.getElementById('reg-name');
+    const fileInput = document.getElementById('reg-photo');
+    const btn = document.getElementById('reg-btn');
 
-            try {
-                const res = await fetch('/api/upload', { method: 'POST', body: formData });
-                const data = await res.json();
+    if (!nameEl || !fileInput || !btn) {
+        alert("Internal error: registration elements not found in the page.");
+        return;
+    }
 
-                if (data.success) {
-                    preview.src = data.image_url + '?v=' + Date.now();
-                    preview.style.opacity = '1';
-                    document.getElementById('faces-detected').innerHTML = `<i class="fa-solid fa-face-smile"></i> ${data.faces_count} Faces Detected`;
-                    renderRealFaces(data.attendance || []);
-                } else {
-                    alert('❌ ' + (data.error || 'Processing failed'));
-                    preview.src = oldSrc;
-                    preview.style.opacity = '1';
-                }
-            } catch (e) {
-                alert('❌ Cannot connect. Make sure you opened http://127.0.0.1:5000');
-                preview.src = oldSrc;
-                preview.style.opacity = '1';
-            }
+    const name = nameEl.value.trim();
+    const file = fileInput.files && fileInput.files[0];
 
-            btn.innerHTML = orig;
-            btn.disabled = false;
+    if (!name || !file) {
+        alert("Please enter the student's name and choose a clear face photo.");
+        return;
+    }
+
+    // Visual feedback
+    const origText = btn.innerHTML;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Registering...`;
+    btn.disabled = true;
+    btn.type = "button"; // ensure not treated as submit (extra safety)
+
+    try {
+        const formData = new FormData();
+        formData.append('name', name);
+        // server expects the file under the field name 'file'
+        formData.append('file', file);
+
+        const res = await fetch('/api/register', {
+            method: 'POST',
+            body: formData
+        });
+
+        // Attempt to parse JSON, but handle non-JSON gracefully
+        let data;
+        try {
+            data = await res.json();
+        } catch (jsonErr) {
+            const text = await res.text().catch(() => '');
+            throw new Error(`Server returned non-JSON response (status ${res.status}): ${text}`);
         }
 
-        function renderRealFaces(attendance) {
-    const container = document.getElementById('face-list');
-    container.innerHTML = '';
+        if (!res.ok) {
+            // server-side validation or other error
+            const errMsg = data && data.error ? data.error : `Server returned ${res.status}`;
+            throw new Error(errMsg);
+        }
 
-    if (!attendance.length) {
-        container.innerHTML = `<div class="text-center py-12 text-gray-400">No students recognized</div>`;
+        if (data.success) {
+            alert(`Student registered: ${data.message || name}`);
+            // reset inputs
+            nameEl.value = '';
+            fileInput.value = '';
+            // optionally switch to dashboard tab so teacher sees registered list
+            switchTab(0);
+            // If your UI has a student list or preview, you can refresh it here
+        } else {
+            const err = data.error || "Registration failed";
+            throw new Error(err);
+        }
+    } catch (err) {
+        // show clear error so you can debug
+        console.error("Register error:", err);
+        alert(`Registration failed: ${err.message || err}`);
+    } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
+    }
+}
+
+/* --- Attendance Upload (group photo) --- */
+async function handleFileUpload(file) {
+    if (!file) return;
+    const preview = document.getElementById('group-preview');
+    const facesDetectedEl = document.getElementById('faces-detected');
+    const faceListEl = document.getElementById('face-list');
+
+    if (preview) {
+        preview.dataset.orig = preview.src || '';
+        preview.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="520"><rect width="100%" height="100%" fill="%23ffedd5"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial" font-size="28" fill="%23d97706">Uploading…</text></svg>';
+    }
+    if (facesDetectedEl) facesDetectedEl.textContent = 'Uploading and processing…';
+    if (faceListEl) faceListEl.innerHTML = '';
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+            const msg = data && data.error ? data.error : `Server returned ${res.status}`;
+            alert(`Upload failed: ${msg}`);
+            if (preview && preview.dataset.orig) preview.src = preview.dataset.orig;
+            return;
+        }
+
+        if (preview && data.image_url) preview.src = data.image_url + '?t=' + Date.now();
+        const fc = typeof data.faces_count === 'number' ? data.faces_count : (data.attendance ? data.attendance.length : 0);
+        if (facesDetectedEl) facesDetectedEl.textContent = `${fc} Faces Detected`;
+        renderRealFaces(data.attendance || []);
+    } catch (err) {
+        console.error("Upload error:", err);
+        alert("Cannot connect to server. Make sure the backend is running at the same origin and port.");
+        if (preview && preview.dataset.orig) preview.src = preview.dataset.orig;
+    }
+}
+
+function renderRealFaces(attendance) {
+    const list = document.getElementById('face-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    if (!attendance || attendance.length === 0) {
+        const el = document.createElement('div');
+        el.className = "text-sm opacity-70";
+        el.textContent = "No recognized faces yet. Register students first and ensure photos are clear.";
+        list.appendChild(el);
         return;
     }
 
     attendance.forEach(item => {
-        const div = document.createElement('div');
-        div.className = `face-row flex items-center gap-4 bg-white p-5 rounded-3xl border border-emerald-300 hover:border-emerald-400 transition-all`;
-        
-        const imgSrc = item.db_image_url || `https://i.pravatar.cc/64?u=${encodeURIComponent(item.Name)}`;
-        
-        div.innerHTML = `
-            <img src="${imgSrc}" 
-                 class="w-14 h-14 rounded-2xl object-cover ring-2 ring-emerald-100" 
-                 alt="${item.Name}"
-                 onerror="this.src='https://i.pravatar.cc/64?u=${encodeURIComponent(item.Name)}'">
-            <div class="flex-1">
-                <div class="font-semibold">${item.Name}</div>
-                <div class="text-xs text-emerald-600">${(item.Confidence*100).toFixed(0)}% confidence</div>
-            </div>
-            <div class="px-5 py-1.5 bg-emerald-100 text-emerald-700 rounded-3xl text-sm font-semibold">Present</div>
-        `;
-        container.appendChild(div);
+        const card = document.createElement('div');
+        card.className = "face-row flex items-center gap-3 p-3 rounded-2xl";
+
+        const thumb = document.createElement('img');
+        const dbUrl = item.db_image_url ? new URL(item.db_image_url, window.location.origin).href : '';
+        thumb.src = dbUrl || (item.photo_url || 'https://picsum.photos/48');
+        thumb.className = "w-12 h-12 rounded-xl ring-2 ring-orange-200 object-cover";
+        thumb.alt = item.Name || 'Person';
+
+        const info = document.createElement('div');
+        info.className = "flex-1";
+
+        const name = document.createElement('div');
+        name.className = "font-semibold";
+        name.textContent = item.Name ? item.Name : 'Unknown';
+
+        const conf = document.createElement('div');
+        conf.className = "text-xs opacity-70";
+        if (typeof item.Confidence === 'number') {
+            conf.textContent = `Confidence: ${(item.Confidence*100).toFixed(1)}%`;
+        } else {
+            conf.textContent = item.Match ? `Match: ${item.Match}` : '';
+        }
+
+        info.appendChild(name);
+        if (conf.textContent) info.appendChild(conf);
+
+        if (dbUrl) {
+            thumb.style.cursor = 'pointer';
+            thumb.addEventListener('click', () => window.open(dbUrl, '_blank'));
+        }
+
+        card.appendChild(thumb);
+        card.appendChild(info);
+        list.appendChild(card);
     });
 }
-        function triggerFileUpload() {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = e => e.target.files[0] && handleFileUpload(e.target.files[0]);
-            input.click();
+
+/* trigger hidden input for attendance upload (if present) */
+function triggerFileUpload() {
+    const f = document.getElementById('group-file');
+    if (!f) {
+        alert("File input for group photo not found. Please confirm dashboard.html contains <input id='group-file' type='file' />");
+        return;
+    }
+    f.value = '';
+    f.click();
+}
+
+/* commit attendance button (placeholder) */
+function commitAttendance() {
+    alert("Attendance committed.");
+}
+
+/* Port warning helper */
+function checkPort() {
+    try {
+        const portWarning = document.getElementById('port-warning');
+        if (window.location.port && window.location.port !== '5000') {
+            if (portWarning) portWarning.classList.remove('hidden');
+        } else {
+            if (portWarning) portWarning.classList.add('hidden');
         }
+    } catch (e) { console.warn(e); }
+}
 
-        function checkPort() {
-            if (location.port !== '5000' && location.hostname === '127.0.0.1') {
-                document.getElementById('port-warning').classList.remove('hidden');
-            }
-        }
+/* Wire up change listener for group upload file (if it exists) */
+function safeSetupGroupFileListener() {
+    const f = document.getElementById('group-file');
+    if (!f) return;
+    f.addEventListener('change', async (ev) => {
+        const file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        await handleFileUpload(file);
+    });
+}
 
-        function commitAttendance() { alert("✅ Attendance committed!"); }
-        function switchTab(n) { /* your existing switchTab code */ }
+window.addEventListener('DOMContentLoaded', () => {
+    // set current date
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
 
-        window.onload = () => {
-            checkPort();
-            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-IN', {day:'numeric', month:'long', year:'numeric'});
-            switchTab(0);
-            renderRealFaces([]);
-        };
-    </script>
+    // ensure register button is safe (not implicitly a submit button)
+    const regBtn = document.getElementById('reg-btn');
+    if (regBtn) {
+        regBtn.type = 'button';
+        regBtn.removeAttribute('onclick'); // remove inline to avoid double-calls
+        regBtn.addEventListener('click', registerStudent);
+    }
+
+    // also ensure the Upload Group Photo button triggers file input if present
+    const upBtn = document.getElementById('upload-btn');
+    if (upBtn) {
+        upBtn.removeAttribute('onclick');
+        upBtn.addEventListener('click', triggerFileUpload);
+    }
+
+    safeSetupGroupFileListener();
+    checkPort();
+    switchTab(0);
+    renderRealFaces([]);
+});
+</script>
 </body>
 </html>
