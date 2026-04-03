@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global theme */
+
+body {
+  font-family: Inter, system-ui;
+  margin: 0;
+}
+
+/* ============================= */
+/* REACT CALENDAR THEME FIX */
+/* ============================= */
+
+.react-calendar {
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  color: white !important;
+}
+
+.react-calendar button {
+  background: transparent !important;
+  color: white !important;
+  border: none !important;
+}
+
+/* Navigation arrows */
+
+.react-calendar__navigation button {
+  font-size: 18px;
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.react-calendar__navigation button:enabled:hover {
+  background: rgba(255,255,255,0.1) !important;
+}
+
+/* Calendar days */
+
+.react-calendar__tile {
+  border-radius: 10px;
+}
+
+.react-calendar__tile:enabled:hover {
+  background: rgba(99,102,241,0.25) !important;
+}
+
+/* Selected day */
+
+.react-calendar__tile--active {
+  background: #6366f1 !important;
+  color: white !important;
+}
+
+/* Today */
+
+.react-calendar__tile--now {
+  background: rgba(99,102,241,0.3) !important;
+}
+
+/* Weekday labels */
+
+.react-calendar__month-view__weekdays {
+  color: rgba(255,255,255,0.6);
+}
+
+/* Hide scrollbar but keep scroll functionality */
+::-webkit-scrollbar {
+  width: 0px;
+  height: 0px;
+}
+
+body {
+  scrollbar-width: none; /* Firefox */
+}
+
+html, body {
+  overflow-x: hidden;
+}

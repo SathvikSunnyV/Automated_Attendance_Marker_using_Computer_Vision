@@ -1,0 +1,29 @@
+# Node (React frontend)
+node_modules/
+build/
+
+# Python (Flask backend)
+__pycache__/
+*.pyc
+*.pkl
+
+# Environment files (VERY IMPORTANT)
+.env
+.env*
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+
+# Model files (optional - depends on size)
+*.onnx
+*.pth
+
+# IDE
